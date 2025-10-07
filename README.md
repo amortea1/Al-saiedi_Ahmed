@@ -1,2 +1,2 @@
 # Al-saiedi_Ahmed
-Portfolio of personal projects and enterprise automation solutions.
+Various small-scale automation initiatives developed for **Alstom** within the RSLI Documentation scope.
