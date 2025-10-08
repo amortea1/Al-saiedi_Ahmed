@@ -1,0 +1,170 @@
+import os 
+import tkinter as tk
+from tkinter import filedialog, messagebox, ttk
+
+class RenommageFichiers:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Outil de Renommage de Fichiers")
+        self.root.geometry("700x600")
+        self.root.resizable(True, True)
+        
+        self.dossier = ""
+        self.fichiers = []
+        
+        self.creer_interface()
+    
+    def creer_interface(self):
+        # Frame principal
+        main_frame = tk.Frame(self.root, padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Sélection du dossier
+        tk.Label(main_frame, text="Dossier:", font=("Arial", 10, "bold")).grid(row=0, column=0, sticky="w", pady=5)
+        self.label_dossier = tk.Label(main_frame, text="Aucun dossier sélectionné", fg="gray")
+        self.label_dossier.grid(row=0, column=1, sticky="w", padx=10)
+        
+        btn_parcourir = tk.Button(main_frame, text="Parcourir", command=self.choisir_dossier, bg="#4CAF50", fg="white")
+        btn_parcourir.grid(row=0, column=2, padx=5)
+        
+        # Séparateur
+        tk.Label(main_frame, text="Garder tout avant:", font=("Arial", 10, "bold")).grid(row=1, column=0, sticky="w", pady=10)
+        self.entry_separateur = tk.Entry(main_frame, width=20, font=("Arial", 10))
+        self.entry_separateur.insert(0, "_ve")
+        self.entry_separateur.grid(row=1, column=1, sticky="w", padx=10)
+        tk.Label(main_frame, text="(modifiable)", font=("Arial", 8), fg="gray").grid(row=1, column=2, sticky="w")
+        
+        # Texte à ajouter
+        tk.Label(main_frame, text="Texte à ajouter:", font=("Arial", 10, "bold")).grid(row=2, column=0, sticky="w", pady=5)
+        self.entry_ajout = tk.Entry(main_frame, width=30, font=("Arial", 10))
+        self.entry_ajout.insert(0, "_nouveau")
+        self.entry_ajout.grid(row=2, column=1, sticky="w", padx=10)
+        tk.Label(main_frame, text="(modifiable)", font=("Arial", 8), fg="gray").grid(row=2, column=2, sticky="w")
+        
+        # Position du texte
+        tk.Label(main_frame, text="Position:", font=("Arial", 10, "bold")).grid(row=3, column=0, sticky="w", pady=5)
+        self.position_var = tk.StringVar(value="suffix")
+        frame_position = tk.Frame(main_frame)
+        frame_position.grid(row=3, column=1, sticky="w", padx=10)
+        tk.Radiobutton(frame_position, text="Avant", variable=self.position_var, value="prefix").pack(side=tk.LEFT)
+        tk.Radiobutton(frame_position, text="Après", variable=self.position_var, value="suffix").pack(side=tk.LEFT, padx=10)
+        
+        # Bouton aperçu
+        btn_apercu = tk.Button(main_frame, text="Aperçu", command=self.afficher_apercu, bg="#2196F3", fg="white", font=("Arial", 10, "bold"))
+        btn_apercu.grid(row=4, column=0, columnspan=3, pady=20)
+        
+        # Zone d'aperçu
+        tk.Label(main_frame, text="Aperçu des modifications:", font=("Arial", 10, "bold")).grid(row=5, column=0, columnspan=3, sticky="w", pady=5)
+        
+        # Frame pour la liste avec scrollbar
+        frame_liste = tk.Frame(main_frame)
+        frame_liste.grid(row=6, column=0, columnspan=3, sticky="nsew", pady=5)
+        
+        scrollbar = tk.Scrollbar(frame_liste)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.liste_apercu = tk.Listbox(frame_liste, height=12, yscrollcommand=scrollbar.set, font=("Courier", 9))
+        self.liste_apercu.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.liste_apercu.yview)
+        
+        # Boutons d'action
+        frame_boutons = tk.Frame(main_frame)
+        frame_boutons.grid(row=7, column=0, columnspan=3, pady=20)
+        
+        btn_renommer = tk.Button(frame_boutons, text="Renommer les fichiers", command=self.renommer_fichiers, 
+                                bg="#FF5722", fg="white", font=("Arial", 11, "bold"), width=20)
+        btn_renommer.pack(side=tk.LEFT, padx=10)
+        
+        btn_quitter = tk.Button(frame_boutons, text="Quitter", command=self.root.quit, 
+                               bg="#9E9E9E", fg="white", font=("Arial", 11), width=15)
+        btn_quitter.pack(side=tk.LEFT)
+        
+        # Configuration du redimensionnement
+        main_frame.rowconfigure(6, weight=1)
+        main_frame.columnconfigure(1, weight=1)
+    
+    def choisir_dossier(self):
+        self.dossier = filedialog.askdirectory(title="Sélectionner un dossier")
+        if self.dossier:
+            self.label_dossier.config(text=self.dossier, fg="black")
+            self.afficher_apercu()
+    
+    def afficher_apercu(self):
+        if not self.dossier:
+            messagebox.showwarning("Attention", "Veuillez d'abord sélectionner un dossier")
+            return
+        
+        self.liste_apercu.delete(0, tk.END)
+        self.fichiers = []
+        
+        separateur = self.entry_separateur.get()
+        texte_ajout = self.entry_ajout.get()
+        position = self.position_var.get()
+        
+        if not separateur:
+            messagebox.showwarning("Attention", "Veuillez définir un séparateur")
+            return
+        
+        count = 0
+        for fichier in os.listdir(self.dossier):
+            chemin_complet = os.path.join(self.dossier, fichier)
+            
+            if os.path.isdir(chemin_complet):
+                continue
+            
+            if separateur in fichier:
+                nom_sans_ext, extension = os.path.splitext(fichier)
+                partie_avant = nom_sans_ext.split(separateur)[0]
+                
+                if position == "prefix":
+                    nouveau_nom = f"{texte_ajout}{partie_avant}{extension}"
+                else:
+                    nouveau_nom = f"{partie_avant}{texte_ajout}{extension}"
+                
+                self.fichiers.append((fichier, nouveau_nom))
+                self.liste_apercu.insert(tk.END, f"{fichier}  →  {nouveau_nom}")
+                count += 1
+        
+        if count == 0:
+            self.liste_apercu.insert(tk.END, f"Aucun fichier contenant '{separateur}' trouvé")
+        else:
+            self.liste_apercu.insert(0, f"═══ {count} fichier(s) à renommer ═══")
+    
+    def renommer_fichiers(self):
+        if not self.fichiers:
+            messagebox.showwarning("Attention", "Aucun fichier à renommer. Cliquez sur 'Aperçu' d'abord.")
+            return
+        
+        reponse = messagebox.askyesno("Confirmation", 
+                                      f"Êtes-vous sûr de vouloir renommer {len(self.fichiers)} fichier(s) ?")
+        
+        if not reponse:
+            return
+        
+        count_success = 0
+        count_error = 0
+        
+        for ancien_nom, nouveau_nom in self.fichiers:
+            ancien_chemin = os.path.join(self.dossier, ancien_nom)
+            nouveau_chemin = os.path.join(self.dossier, nouveau_nom)
+            
+            if os.path.exists(nouveau_chemin):
+                count_error += 1
+                continue
+            
+            try:
+                os.rename(ancien_chemin, nouveau_chemin)
+                count_success += 1
+            except Exception as e:
+                count_error += 1
+        
+        message = f"Renommage terminé!\n\n✓ Réussis: {count_success}\n✗ Erreurs: {count_error}"
+        messagebox.showinfo("Résultat", message)
+        
+        # Rafraîchir l'aperçu
+        self.afficher_apercu()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = RenommageFichiers(root)
+    root.mainloop() 
